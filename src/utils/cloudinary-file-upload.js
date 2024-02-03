@@ -20,6 +20,6 @@ export const uploadOnCloudinary = async (localFilePath) => {
     return response.url;
   } catch (error) {
     // deleted file from our server in case of any file curruption!
-    fs.unlink(localFilePath);
+    fs.unlinkSync(localFilePath);
   }
 };
