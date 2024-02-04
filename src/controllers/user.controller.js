@@ -1,6 +1,8 @@
 import { apiError } from "../utils/api-error.js";
 import { controllerHandeler } from "../utils/async-handeler.js";
 import { User } from "../models/user-model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary-file-upload.js";
+import { apiResponse } from "../utils/api-response.js";
 
 const registerUser = controllerHandeler(async (req, res) => {
   // get user details from frontend using body!
@@ -38,12 +40,32 @@ const registerUser = controllerHandeler(async (req, res) => {
   if (!avatarImageLocalPath) throw new apiError(404, "Avatar image not found!");
 
   // upload to cloudinary!
+  const avatar = await uploadOnCloudinary(avatarImageLocalPath);
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
-  // res.status(200).json({
-  //   email,
-  //   username,
-  //   fullname,
-  // });
+  if (!avatar) throw new apiError(404, "Avatar image not found!");
+
+  // entry to database!
+
+  const user = await User.create({
+    fullname,
+    avatar,
+    coverImage: coverImage || "",
+    email,
+    password,
+    username: username.toLowerCase(),
+  });
+
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken",
+  );
+
+  if (!createdUser)
+    throw new apiError(500, "something went wrong while registering user!");
+
+  res
+    .status(201)
+    .json(new apiResponse(200, createdUser, "User created Succesfully!"));
 });
 
 export { registerUser };
