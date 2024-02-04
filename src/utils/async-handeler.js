@@ -1,10 +1,10 @@
-export const asyncHandeler = (fun) => async (req, res, next) => {
+export const controllerHandeler = (fun) => async (req, res, next) => {
   try {
     await fun(req, res, next);
   } catch (error) {
-    res.status(err.code || 500).json({
+    res.status(error.code || 500).json({
       success: false,
-      message: "AsyncHandeler failed!",
+      message: "Controller failed!",
     });
   }
 };
