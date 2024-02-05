@@ -45,7 +45,17 @@ const registerUser = controllerHandeler(async (req, res) => {
 
   // checking for images! - this files comes from the multer middleware (upload) that we have attached to the routes!
   const avatarImageLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+  // In case user doesnt send the cover image which is not required!
+  let coverImageLocalPath;
+  if (
+    req.files &&
+    Array.isArray(req.files.coverImage) &&
+    req.files.coverImage.length > 0
+  ) {
+    coverImageLocalPath = req.files.coverImage[0].path;
+  }
 
   if (!avatarImageLocalPath) throw new apiError(404, "Avatar image not found!");
 
@@ -67,7 +77,7 @@ const registerUser = controllerHandeler(async (req, res) => {
   });
 
   const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken"
+    "-password -refreshToken",
   );
 
   if (!createdUser)
