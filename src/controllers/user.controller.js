@@ -4,7 +4,17 @@ import { User } from "../models/user-model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary-file-upload.js";
 import { apiResponse } from "../utils/api-response.js";
 
+// Home Controller
+const getAllUsers = controllerHandeler(async (req, res) => {
+  res
+    .status(200)
+    .json(new apiResponse(200, { message: "done with this" }, "done"));
+});
+
+// registerUser Controller
 const registerUser = controllerHandeler(async (req, res) => {
+  // Algorithm for registering user to our youtube fake clone!
+
   // get user details from frontend using body!
   // sanitazation of details given by user! (not empty)
   // check if user already exists!
@@ -26,7 +36,7 @@ const registerUser = controllerHandeler(async (req, res) => {
     throw new apiError(404, "Something is empty!");
   }
 
-  const ifUserAlreadyExists = User.findOne({
+  const ifUserAlreadyExists = await User.findOne({
     // this $ is for filtering query and checks if any
     $or: [{ username }, { email }],
   });
@@ -34,7 +44,7 @@ const registerUser = controllerHandeler(async (req, res) => {
   if (ifUserAlreadyExists) throw new apiError(404, "User already exists!");
 
   // checking for images! - this files comes from the multer middleware (upload) that we have attached to the routes!
-  const avatarImageLocalPath = req.files?.avtaar[0]?.path;
+  const avatarImageLocalPath = req.files?.avatar[0]?.path;
   const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
   if (!avatarImageLocalPath) throw new apiError(404, "Avatar image not found!");
@@ -57,7 +67,7 @@ const registerUser = controllerHandeler(async (req, res) => {
   });
 
   const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken",
+    "-password -refreshToken"
   );
 
   if (!createdUser)
@@ -68,4 +78,4 @@ const registerUser = controllerHandeler(async (req, res) => {
     .json(new apiResponse(200, createdUser, "User created Succesfully!"));
 });
 
-export { registerUser };
+export { registerUser, getAllUsers };
