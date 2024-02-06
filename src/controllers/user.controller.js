@@ -4,6 +4,24 @@ import { User } from "../models/user-model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary-file-upload.js";
 import { apiResponse } from "../utils/api-response.js";
 
+const generateRefreshAndAccessTokens = async (userId) => {
+  try {
+    const user = await User.findById(userId);
+
+    // using schema custom methods, made in user model
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefershToken();
+
+    // saving generated refresh token to database!
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false }); // just save this in db dont need to validate the whole schema!
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    throw new apiError(503, "Something went wrong while generating tokens!");
+  }
+};
+
 // Home Controller
 const getAllUsers = controllerHandeler(async (req, res) => {
   res
@@ -88,4 +106,92 @@ const registerUser = controllerHandeler(async (req, res) => {
     .json(new apiResponse(200, createdUser, "User created Succesfully!"));
 });
 
-export { registerUser, getAllUsers };
+// Login controller!
+const userLogin = controllerHandeler(async (req, res) => {
+  //  take username and password from user using body
+  //  sanitize username and login
+  //  find the user
+  //  if user exists, check password
+  //  generate tokens (access and refersh token for user)!
+  //  send cookies
+  //  send success response
+
+  const { username, email, password } = req.body;
+  if ((!username && !email) || !email?.includes("@") || !password)
+    throw new apiError(403, "Invalid input!");
+
+  const user = await User.findOne({ $or: [{ username }, { email }] });
+  if (!user) throw new apiError(403, "User not registered! Please sign up!");
+
+  // checking password!
+  const isPasswordCorrect = await user.isPasswordCorrect(password);
+  if (!isPasswordCorrect) throw new apiError(403, "Incorrect password!");
+
+  const { accessToken, refreshToken } = await generateRefreshAndAccessTokens(
+    user._id,
+  );
+
+  // As the above 'user' is not updated we will again find the update user document!
+  const loggedInUser = await User.findById(user._id).select(
+    "-refreshToken -password",
+  );
+  // user.save({ validateBeforeSave: false });  would have done the same thing!
+
+  // sending cookies back to client!
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      apiResponse(200, { user: loggedInUser, accessToken, refreshToken }),
+      "User logged in succesfully!",
+    );
+  /* also sending refreshToken and accessToken in json resposne as the backend maybe
+  used for any application too! */
+});
+
+// Logout controller!
+
+const userLogout = controllerHandeler(async (req, res) => {
+  // remove the token cookies
+  // remove 'refreshToken' from document of user!
+
+  const loggedinUser = req.user;
+
+  await User.findOneAndUpdate(
+    loggedinUser._id,
+    {
+      $set: {
+        refreshToken: undefined,
+      },
+    },
+    { new: true },
+  );
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(
+      new apiResponse(
+        201,
+        {
+          success: true,
+          message: `${loggedinUser.fullname} logged out!`,
+        },
+        "User logged out succesfully!",
+      ),
+    );
+});
+
+export { registerUser, getAllUsers, userLogin, userLogout };

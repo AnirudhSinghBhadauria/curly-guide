@@ -1,6 +1,12 @@
 import { Router } from "express";
-import { registerUser, getAllUsers } from "../controllers/user.controller.js";
+import {
+  registerUser,
+  getAllUsers,
+  userLogin,
+  userLogout,
+} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer-middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 const routes = Router();
 
@@ -22,7 +28,12 @@ routes.route("/register").post(
   registerUser,
 );
 
+routes.route("/login").post(userLogin);
+
 // rotues.route('/login').get(getUser) - get req to login controller
 // http://localhost:8080/users.register - post request on register user route!
+
+// Protected Routes!!
+routes.route("/logout").post(verifyJWT, userLogout);
 
 export default routes;
