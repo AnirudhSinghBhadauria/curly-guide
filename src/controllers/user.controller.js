@@ -10,7 +10,7 @@ const generateRefreshAndAccessTokens = async (userId) => {
 
     // using schema custom methods, made in user model
     const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefershToken();
+    const refreshToken = user.generateRefreshToken();
 
     // saving generated refresh token to database!
     user.refreshToken = refreshToken;
@@ -117,11 +117,12 @@ const userLogin = controllerHandeler(async (req, res) => {
   //  send success response
 
   const { username, email, password } = req.body;
-  if ((!username && !email) || !email?.includes("@") || !password)
-    throw new apiError(403, "Invalid input!");
+  if ((!username && !email) || !password)
+    throw new apiError(403, "Username or Email is required!");
 
   const user = await User.findOne({ $or: [{ username }, { email }] });
   if (!user) throw new apiError(403, "User not registered! Please sign up!");
+  // console.log(user);
 
   // checking password!
   const isPasswordCorrect = await user.isPasswordCorrect(password);
@@ -148,8 +149,11 @@ const userLogin = controllerHandeler(async (req, res) => {
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
     .json(
-      apiResponse(200, { user: loggedInUser, accessToken, refreshToken }),
-      "User logged in succesfully!",
+      new apiResponse(
+        200,
+        { user: loggedInUser, accessToken, refreshToken },
+        `${loggedInUser.username} logged in succesfully!`,
+      ),
     );
   /* also sending refreshToken and accessToken in json resposne as the backend maybe
   used for any application too! */

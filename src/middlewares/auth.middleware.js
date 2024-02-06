@@ -5,15 +5,13 @@ import jwt from "jsonwebtoken";
 
 export const verifyJWT = controllerHandeler(async (req, res, next) => {
   try {
-    const bearerToken = req.header("Authorization").split(" ")[1]; // incase of a mobile application!
+    // const bearerToken = req.header("Authorization").split(" ")[1]; // incase of a mobile application!
 
-    const token = req.cookies.accessToken || bearerToken;
+    const token =
+      req.cookies?.accessToken || req.header("Authorization").split(" ")[1];
     if (!token) throw new apiError(401, "Unauthorized request!");
 
-    const decodedToken = await jwt.verify(
-      token,
-      process.env.ACCESS_TOKEN_SECRET,
-    );
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
     const user = await User.findById(decodedToken?._id).select(
       "-password -refreshToken",
