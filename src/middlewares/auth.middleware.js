@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 export const verifyJWT = controllerHandeler(async (req, res, next) => {
   try {
     // const bearerToken = req.header("Authorization").split(" ")[1]; // incase of a mobile application!
-
+    // anirudh
     const token =
       req.cookies?.accessToken || req.header("Authorization").split(" ")[1];
     if (!token) throw new apiError(401, "Unauthorized request!");
