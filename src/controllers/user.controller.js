@@ -3,6 +3,9 @@ import { controllerHandeler } from "../utils/async-handeler.js";
 import { User } from "../models/user-model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary-file-upload.js";
 import { apiResponse } from "../utils/api-response.js";
+import jwt from "jsonwebtoken";
+import { options } from "../constants.js";
+import { deleteLocalFile } from "../utils/delete-local-file.js";
 
 // Generate Refresh And Access Tokens
 const generateRefreshAndAccessTokens = async (userId) => {
@@ -140,10 +143,6 @@ const userLogin = controllerHandeler(async (req, res) => {
   // user.save({ validateBeforeSave: false });  would have done the same thing!
 
   // sending cookies back to client!
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
 
   return res
     .status(200)
@@ -178,11 +177,6 @@ const userLogout = controllerHandeler(async (req, res) => {
     { new: true },
   );
 
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
   return res
     .status(200)
     .clearCookie("accessToken", options)
@@ -199,4 +193,174 @@ const userLogout = controllerHandeler(async (req, res) => {
     );
 });
 
-export { registerUser, getAllUsers, userLogin, userLogout };
+/* After access token expires we again check the refresh Token with what is saved in the db in user model!
+ if the incoming token from user cookies matches what is in db, we will create new access and refresh Token for the user and save it in db and client cookies! */
+
+const refreshTokens = controllerHandeler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body?.refreshToken;
+
+  if (!incomingRefreshToken) throw new apiError(401, "Unauthorized Access!");
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET,
+    );
+
+    if (!decodedToken) throw new apiError(401, "Unauthorized Access!");
+
+    const user = await User.findById(decodedToken?._id);
+
+    if (!user) throw new apiError(401, "Invalid authorization token!");
+
+    if (user.refreshToken !== incomingRefreshToken)
+      throw new apiError(401, "Unauthorized Access!");
+
+    const { refreshToken, accessToken } = await generateRefreshAndAccessTokens(
+      user._id,
+    );
+
+    res
+      .status(200)
+      .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new apiResponse(
+          200,
+          { accessToken, refreshToken },
+          "Access token and Refersh tokens refreshed succesfully!",
+        ),
+      );
+  } catch (error) {
+    throw new apiError(404, "Invalid refresh token!");
+  }
+});
+
+const changeUserPassword = controllerHandeler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const userId = req.user?._id;
+  const user = await User.findById(userId);
+  if (!user) throw new apiError(401, "Unauthorized Access!");
+
+  const isPasswordCorrect = await isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) throw new apiError(401, "Old Password is wrong!");
+
+  // Changing new password in the user model!
+  user.password = newPassword;
+  // Saving the model change
+  await user.save({ validateBeforeSave: false });
+
+  res
+    .status(200)
+    .json(new apiResponse(200, {}, "Password Changed Succesfully!"));
+});
+
+const getCurrentUser = controllerHandeler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new apiResponse(200, req.user, "User found succesfully!"));
+});
+
+const updateProfile = controllerHandeler(async (req, res) => {
+  const { fullname, email } = req.body;
+
+  if (!fullname || !email)
+    throw new apiError(401, "Both email and fullname are required!");
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        fullname,
+        email,
+      },
+    },
+    {
+      new: true, // this new will ensure that uppdated data is saved in this variable;
+    },
+  ).select("-password");
+
+  return res
+    .status(201)
+    .json(new apiResponse(201, user, "Profile updated succesfully!"));
+});
+
+const updateUserAvatar = controllerHandeler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) throw new apiError(401, "Currupt file path!");
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar.url) throw new apiError(401, "Error while uploading new avatar");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    {
+      new: true,
+    },
+  ).select("-password");
+
+  // Unlink local file!
+  await deleteLocalFile(avatarLocalPath);
+
+  return res
+    .status(201)
+    .json(
+      new apiResponse(
+        201,
+        { updatedAvatar: updatedUser.avatar },
+        "Display picture updated succesfully!",
+      ),
+    );
+});
+
+const updateUserCoverImage = controllerHandeler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+  if (!coverImageLocalPath) throw new apiError(401, "Currupt Image Uploaded!");
+
+  const updatedCoverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!updatedCoverImage.url)
+    throw new apiError(503, "Error while uploading image to cloudinary!");
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: updatedCoverImage.url,
+      },
+    },
+    { new: true },
+  );
+
+  // Unlink local file!
+  await deleteLocalFile(coverImageLocalPath);
+
+  return res
+    .status(201)
+    .json(
+      new apiResponse(
+        201,
+        { updatedCoverImage: updatedUser.coverImage },
+        "Cover Image updated successfully!",
+      ),
+    );
+});
+
+export {
+  registerUser,
+  getAllUsers,
+  userLogin,
+  userLogout,
+  refreshTokens,
+  changeUserPassword,
+  getCurrentUser,
+  updateProfile,
+  updateUserAvatar,
+  updateUserCoverImage,
+};

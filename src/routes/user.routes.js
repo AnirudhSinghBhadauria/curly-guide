@@ -4,7 +4,11 @@ import {
   getAllUsers,
   userLogin,
   userLogout,
+  refreshTokens,
+  updateUserAvatar,
+  updateUserCoverImage,
 } from "../controllers/user.controller.js";
+
 import { upload } from "../middlewares/multer-middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
@@ -35,5 +39,15 @@ routes.route("/login").post(userLogin);
 
 // Protected Routes!!
 routes.route("/logout").post(verifyJWT, userLogout);
+routes.route("/refresh-tokens").post(refreshTokens);
+
+// Update profile images!
+routes
+  .route("/avatar")
+  .post(verifyJWT, upload.single("avatar"), updateUserAvatar);
+
+routes
+  .route("/coverImage")
+  .post(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
 
 export default routes;
