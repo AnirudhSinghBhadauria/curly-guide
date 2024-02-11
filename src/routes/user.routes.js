@@ -7,6 +7,11 @@ import {
   refreshTokens,
   updateUserAvatar,
   updateUserCoverImage,
+  changeUserPassword,
+  getCurrentUser,
+  updateProfile,
+  getUserChannelProfile,
+  getWatchHistory,
 } from "../controllers/user.controller.js";
 
 import { upload } from "../middlewares/multer-middleware.js";
@@ -33,21 +38,26 @@ routes.route("/register").post(
 );
 
 routes.route("/login").post(userLogin);
+routes.route("/refresh-tokens").post(refreshTokens);
 
 // rotues.route('/login').get(getUser) - get req to login controller
 // http://localhost:8080/users.register - post request on register user route!
 
 // Protected Routes!!
 routes.route("/logout").post(verifyJWT, userLogout);
-routes.route("/refresh-tokens").post(refreshTokens);
+routes.route("/change-password").post(verifyJWT, changeUserPassword);
+routes.route("/user").get(verifyJWT, getCurrentUser);
+routes.route("/profile").patch(verifyJWT, updateProfile);
+routes.route("/channel/:username").post(verifyJWT, getUserChannelProfile);
+routes.route("/history").get(verifyJWT, getWatchHistory);
 
 // Update profile images!
 routes
   .route("/avatar")
-  .post(verifyJWT, upload.single("avatar"), updateUserAvatar);
+  .patch(verifyJWT, upload.single("avatar"), updateUserAvatar);
 
 routes
   .route("/coverImage")
-  .post(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
+  .patch(verifyJWT, upload.single("coverImage"), updateUserCoverImage);
 
 export default routes;

@@ -6,6 +6,7 @@ import { apiResponse } from "../utils/api-response.js";
 import jwt from "jsonwebtoken";
 import { options } from "../constants.js";
 import { deleteLocalFile } from "../utils/delete-local-file.js";
+import mongoose from "mongoose";
 
 // Generate Refresh And Access Tokens
 const generateRefreshAndAccessTokens = async (userId) => {
@@ -170,8 +171,8 @@ const userLogout = controllerHandeler(async (req, res) => {
   await User.findOneAndUpdate(
     loggedinUser._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1, // this unset the refreshToken feild,
       },
     },
     { new: true },
@@ -352,6 +353,134 @@ const updateUserCoverImage = controllerHandeler(async (req, res) => {
     );
 });
 
+const getUserChannelProfile = controllerHandeler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) throw new apiError(401, "Username is missing");
+
+  // Aggregation pripelines!
+  const channel = User.aggregate([
+    {
+      // task - filetering the username!
+      $match: {
+        // This match will bring only username feild in the documents of User model! - basically filtering only username feild!
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      // task - finds how many subscribers a channel has!
+      $lookup: {
+        from: "subscriptions", // This refers to subscriptions model! (saved in db as plural and toLowerCase!
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers", // ----- 1
+      },
+    },
+    {
+      // task - finds how many channels I have subscribed
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo", // ---- 2
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          // counts the subscribers and subscribedTo!
+          $size: "$subscribers", // ----- 1  - counts the no. of documents!
+        },
+        channelsSubscribedCount: {
+          // counts the subscribers and subscribedTo!
+          $size: "$subscribedTo", // ---- 2
+        },
+        isSubscribed: {
+          $cond: {
+            if: {
+              $in: [req.user?._id, "$subscribers.subscriber"],
+            },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullname: 1,
+        username: 1,
+        subscribersCount: 1,
+        subscribedTo: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+  // Aggregation pripelines always returns result in arrays of objects! threfore, channle is an array!
+  if (!channel?.length) throw new apiError(401, "Channel does not exists!");
+
+  return res
+    .status(200)
+    .json(
+      new apiResponse(200, channel[0], "User channel fetched successfully!"),
+    );
+});
+
+const getWatchHistory = controllerHandeler(async (req, res) => {
+  const user = User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.objectId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "videos",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "user",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+                {
+                  $addFields: {
+                    owner: {
+                      $first: "$owner",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(
+      new apiResponse(
+        200,
+        user[0].watchHistory,
+        "Watch history fetched successfully!",
+      ),
+    );
+});
+
 export {
   registerUser,
   getAllUsers,
@@ -363,4 +492,6 @@ export {
   updateProfile,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
+  getWatchHistory,
 };
