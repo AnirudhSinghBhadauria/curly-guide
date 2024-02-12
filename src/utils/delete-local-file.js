@@ -1,5 +1,5 @@
 import fs from "fs";
-import { apiError } from "./api-error";
+import { apiError } from "./api-error.js";
 
 export const deleteLocalFile = async (localPath) => {
   try {

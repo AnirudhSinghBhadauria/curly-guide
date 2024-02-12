@@ -6,7 +6,7 @@ import { apiResponse } from "../utils/api-response.js";
 import jwt from "jsonwebtoken";
 import { options } from "../constants.js";
 import { deleteLocalFile } from "../utils/delete-local-file.js";
-import mongoose from "mongoose";
+import mongoose from "mongoose";    
 
 // Generate Refresh And Access Tokens
 const generateRefreshAndAccessTokens = async (userId) => {
@@ -100,7 +100,7 @@ const registerUser = controllerHandeler(async (req, res) => {
   });
 
   const createdUser = await User.findById(user._id).select(
-    "-password -refreshToken",
+    "-password -refreshToken"
   );
 
   if (!createdUser)
@@ -134,12 +134,12 @@ const userLogin = controllerHandeler(async (req, res) => {
   if (!isPasswordCorrect) throw new apiError(403, "Incorrect password!");
 
   const { accessToken, refreshToken } = await generateRefreshAndAccessTokens(
-    user._id,
+    user._id
   );
 
   // As the above 'user' is not updated we will again find the update user document!
   const loggedInUser = await User.findById(user._id).select(
-    "-refreshToken -password",
+    "-refreshToken -password"
   );
   // user.save({ validateBeforeSave: false });  would have done the same thing!
 
@@ -153,8 +153,8 @@ const userLogin = controllerHandeler(async (req, res) => {
       new apiResponse(
         200,
         { user: loggedInUser, accessToken, refreshToken },
-        `${loggedInUser.username} logged in succesfully!`,
-      ),
+        `${loggedInUser.username} logged in succesfully!`
+      )
     );
   /* also sending refreshToken and accessToken in json resposne as the backend maybe
   used for any application too! */
@@ -175,7 +175,7 @@ const userLogout = controllerHandeler(async (req, res) => {
         refreshToken: 1, // this unset the refreshToken feild,
       },
     },
-    { new: true },
+    { new: true }
   );
 
   return res
@@ -189,8 +189,8 @@ const userLogout = controllerHandeler(async (req, res) => {
           success: true,
           message: `${loggedinUser.fullname} logged out!`,
         },
-        "User logged out succesfully!",
-      ),
+        "User logged out succesfully!"
+      )
     );
 });
 
@@ -206,7 +206,7 @@ const refreshTokens = controllerHandeler(async (req, res) => {
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET,
+      process.env.REFRESH_TOKEN_SECRET
     );
 
     if (!decodedToken) throw new apiError(401, "Unauthorized Access!");
@@ -219,7 +219,7 @@ const refreshTokens = controllerHandeler(async (req, res) => {
       throw new apiError(401, "Unauthorized Access!");
 
     const { refreshToken, accessToken } = await generateRefreshAndAccessTokens(
-      user._id,
+      user._id
     );
 
     res
@@ -230,8 +230,8 @@ const refreshTokens = controllerHandeler(async (req, res) => {
         new apiResponse(
           200,
           { accessToken, refreshToken },
-          "Access token and Refersh tokens refreshed succesfully!",
-        ),
+          "Access token and Refersh tokens refreshed succesfully!"
+        )
       );
   } catch (error) {
     throw new apiError(404, "Invalid refresh token!");
@@ -280,7 +280,7 @@ const updateProfile = controllerHandeler(async (req, res) => {
     },
     {
       new: true, // this new will ensure that uppdated data is saved in this variable;
-    },
+    }
   ).select("-password");
 
   return res
@@ -304,7 +304,7 @@ const updateUserAvatar = controllerHandeler(async (req, res) => {
     },
     {
       new: true,
-    },
+    }
   ).select("-password");
 
   // Unlink local file!
@@ -316,8 +316,8 @@ const updateUserAvatar = controllerHandeler(async (req, res) => {
       new apiResponse(
         201,
         { updatedAvatar: updatedUser.avatar },
-        "Display picture updated succesfully!",
-      ),
+        "Display picture updated succesfully!"
+      )
     );
 });
 
@@ -336,7 +336,7 @@ const updateUserCoverImage = controllerHandeler(async (req, res) => {
         coverImage: updatedCoverImage.url,
       },
     },
-    { new: true },
+    { new: true }
   );
 
   // Unlink local file!
@@ -348,8 +348,8 @@ const updateUserCoverImage = controllerHandeler(async (req, res) => {
       new apiResponse(
         201,
         { updatedCoverImage: updatedUser.coverImage },
-        "Cover Image updated successfully!",
-      ),
+        "Cover Image updated successfully!"
+      )
     );
 });
 
@@ -423,7 +423,7 @@ const getUserChannelProfile = controllerHandeler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new apiResponse(200, channel[0], "User channel fetched successfully!"),
+      new apiResponse(200, channel[0], "User channel fetched successfully!")
     );
 });
 
@@ -476,8 +476,8 @@ const getWatchHistory = controllerHandeler(async (req, res) => {
       new apiResponse(
         200,
         user[0].watchHistory,
-        "Watch history fetched successfully!",
-      ),
+        "Watch history fetched successfully!"
+      )
     );
 });
 
