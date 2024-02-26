@@ -36,8 +36,7 @@ const getAllUsers = controllerHandeler(async (req, res) => {
 
 // registerUser Controller
 const registerUser = controllerHandeler(async (req, res) => {
-  // Algorithm for registering user to our youtube fake clone!
-
+  
   // get user details from frontend using body!
   // sanitazation of details given by user! (not empty)
   // check if user already exists!
